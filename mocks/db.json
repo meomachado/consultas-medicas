@@ -1,0 +1,94 @@
+{
+  "consultas": [
+    {
+      "id": 1,
+      "paciente": "João Silva",
+      "medico": "Dra. Maria Souza",
+      "especialidade": "Cardiologia",
+      "data": "2025-09-20T14:00:00.000Z",
+      "status": "Agendada",
+      "notas": "Primeira consulta de rotina"
+    },
+    {
+      "id": 2,
+      "paciente": "Ana Pereira",
+      "medico": "Dr. Carlos Mendes",
+      "especialidade": "Dermatologia",
+      "data": "2025-09-22T09:30:00.000Z",
+      "status": "Realizada",
+      "notas": "Tratamento de alergia"
+    },
+    {
+      "id": 3,
+      "paciente": "Lucas Oliveira",
+      "medico": "Dra. Fernanda Lima",
+      "especialidade": "Pediatria",
+      "data": "2025-09-25T11:00:00.000Z",
+      "status": "Cancelada",
+      "notas": "Consulta cancelada pelo paciente"
+    },
+    {
+      "id": 4,
+      "paciente": "Mariana Costa",
+      "medico": "Dr. Ricardo Alves",
+      "especialidade": "Ortopedia",
+      "data": "2025-09-28T15:00:00.000Z",
+      "status": "Agendada",
+      "notas": "Dor no joelho após corrida"
+    },
+    {
+      "id": 5,
+      "paciente": "Pedro Santos",
+      "medico": "Dra. Beatriz Rocha",
+      "especialidade": "Neurologia",
+      "data": "2025-09-30T10:00:00.000Z",
+      "status": "Realizada",
+      "notas": "Enxaqueca recorrente"
+    },
+    {
+      "id": 6,
+      "paciente": "Juliana Martins",
+      "medico": "Dr. Eduardo Ramos",
+      "especialidade": "Cardiologia",
+      "data": "2025-10-02T13:00:00.000Z",
+      "status": "Agendada",
+      "notas": "Check-up anual"
+    },
+    {
+      "id": 7,
+      "paciente": "Felipe Andrade",
+      "medico": "Dra. Camila Torres",
+      "especialidade": "Dermatologia",
+      "data": "2025-10-05T16:30:00.000Z",
+      "status": "Agendada",
+      "notas": "Avaliação de manchas na pele"
+    },
+    {
+      "id": 8,
+      "paciente": "Carolina Nunes",
+      "medico": "Dr. Marcelo Vieira",
+      "especialidade": "Pediatria",
+      "data": "2025-10-07T08:00:00.000Z",
+      "status": "Realizada",
+      "notas": "Vacinação infantil"
+    },
+    {
+      "id": 9,
+      "paciente": "Rafael Gomes",
+      "medico": "Dra. Patrícia Azevedo",
+      "especialidade": "Ortopedia",
+      "data": "2025-10-10T14:00:00.000Z",
+      "status": "Cancelada",
+      "notas": "Paciente não compareceu"
+    },
+    {
+      "id": 10,
+      "paciente": "Isabela Ferreira",
+      "medico": "Dr. André Barbosa",
+      "especialidade": "Neurologia",
+      "data": "2025-10-12T09:00:00.000Z",
+      "status": "Agendada",
+      "notas": "Avaliação de tonturas"
+    }
+  ]
+}
