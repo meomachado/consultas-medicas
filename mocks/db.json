@@ -1,94 +1,49 @@
 {
-  "consultas": [
-    {
-      "id": 1,
-      "paciente": "João Silva",
-      "medico": "Dra. Maria Souza",
-      "especialidade": "Cardiologia",
-      "data": "2025-09-20T14:00:00.000Z",
-      "status": "Agendada",
-      "notas": "Primeira consulta de rotina"
-    },
-    {
-      "id": 2,
-      "paciente": "Ana Pereira",
-      "medico": "Dr. Carlos Mendes",
-      "especialidade": "Dermatologia",
-      "data": "2025-09-22T09:30:00.000Z",
-      "status": "Realizada",
-      "notas": "Tratamento de alergia"
-    },
-    {
-      "id": 3,
-      "paciente": "Lucas Oliveira",
-      "medico": "Dra. Fernanda Lima",
-      "especialidade": "Pediatria",
-      "data": "2025-09-25T11:00:00.000Z",
-      "status": "Cancelada",
-      "notas": "Consulta cancelada pelo paciente"
-    },
-    {
-      "id": 4,
-      "paciente": "Mariana Costa",
-      "medico": "Dr. Ricardo Alves",
-      "especialidade": "Ortopedia",
-      "data": "2025-09-28T15:00:00.000Z",
-      "status": "Agendada",
-      "notas": "Dor no joelho após corrida"
-    },
-    {
-      "id": 5,
-      "paciente": "Pedro Santos",
-      "medico": "Dra. Beatriz Rocha",
-      "especialidade": "Neurologia",
-      "data": "2025-09-30T10:00:00.000Z",
-      "status": "Realizada",
-      "notas": "Enxaqueca recorrente"
-    },
-    {
-      "id": 6,
-      "paciente": "Juliana Martins",
-      "medico": "Dr. Eduardo Ramos",
-      "especialidade": "Cardiologia",
-      "data": "2025-10-02T13:00:00.000Z",
-      "status": "Agendada",
-      "notas": "Check-up anual"
-    },
-    {
-      "id": 7,
-      "paciente": "Felipe Andrade",
-      "medico": "Dra. Camila Torres",
-      "especialidade": "Dermatologia",
-      "data": "2025-10-05T16:30:00.000Z",
-      "status": "Agendada",
-      "notas": "Avaliação de manchas na pele"
-    },
-    {
-      "id": 8,
-      "paciente": "Carolina Nunes",
-      "medico": "Dr. Marcelo Vieira",
-      "especialidade": "Pediatria",
-      "data": "2025-10-07T08:00:00.000Z",
-      "status": "Realizada",
-      "notas": "Vacinação infantil"
-    },
-    {
-      "id": 9,
-      "paciente": "Rafael Gomes",
-      "medico": "Dra. Patrícia Azevedo",
-      "especialidade": "Ortopedia",
-      "data": "2025-10-10T14:00:00.000Z",
-      "status": "Cancelada",
-      "notas": "Paciente não compareceu"
-    },
-    {
-      "id": 10,
-      "paciente": "Isabela Ferreira",
-      "medico": "Dr. André Barbosa",
-      "especialidade": "Neurologia",
-      "data": "2025-10-12T09:00:00.000Z",
-      "status": "Agendada",
-      "notas": "Avaliação de tonturas"
-    }
-  ]
+  "name": "consultas-medicas",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-toast": "^1.2.15",
+    "axios": "^1.12.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.544.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.62.0",
+    "react-router-dom": "^7.9.1",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.1.9",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "json-server": "^1.0.0-beta.3",
+    "msw": "^2.11.2",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.2"
+  }
 }

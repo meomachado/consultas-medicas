@@ -1,250 +1,222 @@
-import React, { useEffect, useMemo, useState, forwardRef } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams, NavLink } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { create } from "zustand";
-import axios from "axios";
+import React, { useEffect, useMemo, useState, forwardRef, createContext, useContext } from "react";
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, NavLink, Navigate, Outlet } from "react-router-dom";
 import { Toaster, toast } from 'sonner';
+
+// Stores
+import { useConsultasStore } from './store/consultasStore';
+import { useAuthStore } from './store/authStore';
+
+// Pages
+import { LoginPage } from './pages/auth/LoginPage';
+import { ConsultaForm } from './pages/consultas/ConsultaForm';
+import { ConsultaDetailsPage } from './pages/consultas/ConsultaDetailsPage';
 
 // UTILS
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { cva, type VariantProps } from "class-variance-authority"; // Importando CVA
+import { cva, type VariantProps } from "class-variance-authority";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// TYPES
-interface Consulta {
-  id: number;
-  paciente: string;
-  medico: string;
-  especialidade: string;
-  data: string;
-  status: "Agendada" | "Realizada" | "Cancelada";
-  notas?: string;
-}
+// ICONS (Lucide-React)
+import { Plus, Stethoscope, LayoutDashboard, LogOut, Calendar, CheckCircle, Moon, Sun } from 'lucide-react';
 
-// ZOD SCHEMA
-const consultaSchema = z.object({
-  paciente: z.string().min(3, "O nome do paciente deve ter no mínimo 3 caracteres."),
-  medico: z.string().min(3, "O nome do médico deve ter no mínimo 3 caracteres."),
-  especialidade: z.string().min(3, "A especialidade deve ter no mínimo 3 caracteres."),
-  data: z.string().refine((val) => val && !isNaN(Date.parse(val)), {
-    message: "Data e hora são obrigatórios.",
-  }),
-  status: z.enum(["Agendada", "Realizada", "Cancelada"]),
-  notas: z.string().optional(),
-});
-type ConsultaFormData = z.infer<typeof consultaSchema>;
-
-// SERVICES
-const api = axios.create({ baseURL: "http://localhost:3001" });
-
-const consultasService = {
-  list: async (): Promise<Consulta[]> => (await api.get("/consultas")).data,
-  getById: async (id: number): Promise<Consulta> => (await api.get(`/consultas/${id}`)).data,
-  create: async (data: Omit<Consulta, "id">): Promise<Consulta> => (await api.post("/consultas", data)).data,
-  update: async (id: number, data: ConsultaFormData): Promise<Consulta> => (await api.put(`/consultas/${id}`, data)).data,
-  remove: async (id: number): Promise<void> => await api.delete(`/consultas/${id}`),
-};
-
-// ZUSTAND STORE
-interface ConsultasState {
-  consultas: Consulta[];
-  loading: boolean;
-  fetchConsultas: () => Promise<void>;
-  deleteConsulta: (id: number) => Promise<void>;
-}
-
-const useConsultasStore = create<ConsultasState>((set) => ({
-  consultas: [],
-  loading: true,
-  fetchConsultas: async () => {
-    set({ loading: true });
-    try {
-      const data = await consultasService.list();
-      set({ consultas: data, loading: false });
-    } catch (error) {
-      toast.error("Erro ao buscar as consultas.");
-      set({ loading: false });
-    }
-  },
-  deleteConsulta: async (id: number) => {
-    try {
-      await consultasService.remove(id);
-      set((state) => ({ consultas: state.consultas.filter((c) => c.id !== id) }));
-      toast.success("Consulta excluída com sucesso!");
-    } catch (error) {
-      toast.error("Erro ao excluir a consulta.");
-    }
-  },
-}));
-
-// ICONS
-const Icon = ({ path, className = "w-6 h-6" }: { path: string; className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d={path} />
-  </svg>
-);
-const PlusIcon = (props: { className?: string }) => <Icon path="M12 5v14m-7-7h14" {...props} />;
-const StethoscopeIcon = (props: { className?: string }) => <Icon path="M8.5 19.5a2.5 2.5 0 0 1-3.24-2.22c-.17-.83.39-1.63 1.24-1.78a2.5 2.5 0 0 1 2.22 3.24c.17.83-.39 1.63-1.22 1.76zM4 10V2c0-1.1.9-2 2-2h1m0 0v6c0 1.1.9 2 2 2h2m0 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" {...props} />;
-const LayoutDashboardIcon = (props: { className?: string }) => <Icon path="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z" {...props} />;
-const ChevronDownIcon = (props: { className?: string }) => <Icon path="m6 9 6 6 6-6" {...props} />;
-
-// UI COMPONENTS
-
-// FIX 1: Componente Button corrigido para aceitar 'size' e usar CVA
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none",
+// UI COMPONENTS (Reutilizáveis em toda a aplicação)
+export const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-blue-600 text-white hover:bg-blue-700",
-        destructive: "bg-red-500 text-white hover:bg-red-600",
-        outline: "border border-gray-300 bg-transparent hover:bg-gray-100",
-        ghost: "hover:bg-gray-100",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
       },
       size: {
         default: "h-10 px-4 py-2",
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
       },
     },
     defaultVariants: {
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, ...props }, ref) => (
+    <button className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+  )
+);
+Button.displayName = "Button";
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+export const Card = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+));
+Card.displayName = "Card";
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
+export const CardHeader = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+));
+CardHeader.displayName = "CardHeader";
 
+export const CardTitle = forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => (
+  <h3 ref={ref} className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
+));
+CardTitle.displayName = "CardTitle";
 
-const Card = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-    <div className={cn("rounded-lg border bg-white text-gray-900 shadow-sm", className)} {...props} />
-);
-const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-    <div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
-);
-const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h3 className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
-);
-const CardDescription = ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
-    <p className={cn("text-sm text-gray-500", className)} {...props} />
-);
-const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-    <div className={cn("p-6 pt-0", className)} {...props} />
-);
-const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(({ className, ...props }, ref) => (
-    <input className={cn("flex h-10 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2", className)} ref={ref} {...props} />
+export const CardDescription = forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(({ className, ...props }, ref) => (
+  <p ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
 ));
-const Label = forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(({ className, ...props }, ref) => (
-    <label className={cn("text-sm font-medium leading-none text-gray-700", className)} ref={ref} {...props} />
+CardDescription.displayName = "CardDescription";
+
+export const CardContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
 ));
-const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(({ className, ...props }, ref) => (
-  <textarea
-    className={cn("flex min-h-[80px] w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2", className)}
-    ref={ref}
-    {...props}
-  />
+CardContent.displayName = "CardContent";
+
+export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(({ className, ...props }, ref) => (
+  <input className={cn("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50", className)} ref={ref} {...props} />
 ));
-const Select = ({ children, className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <div className="relative">
-    <select
-      className={cn("h-10 w-full appearance-none rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2", className)}
-      {...props}
-    >
-      {children}
-    </select>
-    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-  </div>
-);
-const Table = forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(({ className, ...props }, ref) => (
-  <div className="w-full overflow-auto">
-    <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-  </div>
+Input.displayName = "Input";
+
+export const Label = forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(({ className, ...props }, ref) => (
+  <label className={cn("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", className)} ref={ref} {...props} />
 ));
-const TableHeader = forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
-));
-const TableBody = forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(({ className, ...props }, ref) => (
-  <tbody ref={ref} className={cn("[&_tr:last-child]:border-0", className)} {...props} />
-));
-const TableRow = forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(({ className, ...props }, ref) => (
-  <tr ref={ref} className={cn("border-b transition-colors hover:bg-gray-50/50 data-[state=selected]:bg-gray-100", className)} {...props} />
-));
-const TableHead = forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => (
-  <th ref={ref} className={cn("h-12 px-4 text-left align-middle font-bold text-gray-600 [&:has([role=checkbox])]:pr-0", className)} {...props} />
-));
-const TableCell = forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => (
-  <td ref={ref} className={cn("p-4 align-middle text-gray-800", className)} {...props} />
-));
-const Badge = ({ className, status }: { className?: string; status: "Agendada" | "Realizada" | "Cancelada" }) => {
+Label.displayName = "Label";
+
+export const Badge = ({ className, status }: { className?: string; status: "Agendada" | "Realizada" | "Cancelada" }) => {
   const variants = {
-    Agendada: "bg-blue-100 text-blue-800 border-blue-200",
-    Realizada: "bg-green-100 text-green-800 border-green-200",
-    Cancelada: "bg-red-100 text-red-800 border-red-200",
+    Agendada: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    Realizada: "bg-green-500/10 text-green-500 border-green-500/20",
+    Cancelada: "bg-red-500/10 text-red-500 border-red-500/20",
   };
+  const dotVariants = {
+    Agendada: "bg-blue-500",
+    Realizada: "bg-green-500",
+    Cancelada: "bg-red-500",
+  }
   return (
-    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border", variants[status], className)}>
-      <span className={cn("w-2 h-2 mr-2 rounded-full", {
-        'bg-blue-500': status === 'Agendada', 'bg-green-500': status === 'Realizada', 'bg-red-500': status === 'Cancelada',
-      })}></span>
+    <span className={cn("inline-flex items-center gap-x-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border", variants[status], className)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", dotVariants[status])}></span>
       {status}
     </span>
   );
 };
 
+export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(({ className, ...props }, ref) => (
+    <textarea
+        className={cn(
+            "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            className
+        )}
+        ref={ref}
+        {...props}
+    />
+));
+Textarea.displayName = "Textarea";
+
+// THEME PROVIDER & TOGGLE
+type Theme = "dark" | "light" | "system";
+type ThemeProviderState = { theme: Theme; setTheme: (theme: Theme) => void };
+const ThemeProviderContext = createContext<ThemeProviderState>({ theme: "system", setTheme: () => null });
+
+function ThemeProvider({ children, defaultTheme = "system", storageKey = "clinicsys-theme" }: { children: React.ReactNode; defaultTheme?: Theme; storageKey?: string; }) {
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    if (theme === "system") {
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      root.classList.add(systemTheme);
+      return;
+    }
+    root.classList.add(theme);
+  }, [theme]);
+
+  const value = { theme, setTheme: (theme: Theme) => { localStorage.setItem(storageKey, theme); setTheme(theme); }, };
+  return <ThemeProviderContext.Provider value={value}>{children}</ThemeProviderContext.Provider>;
+}
+const useTheme = () => useContext(ThemeProviderContext);
+
+function ThemeToggle() {
+  const { setTheme, theme } = useTheme();
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+    >
+      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
+}
+
 // LAYOUT COMPONENT
-const Layout = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex min-h-screen w-full bg-gray-100">
-      <aside className="hidden w-64 flex-col border-r bg-white p-4 sm:flex">
-        <div className="mb-8 flex items-center gap-2">
-          <StethoscopeIcon className="h-8 w-8 text-blue-600" />
-          <h1 className="text-xl font-bold text-gray-800">ClinicSys</h1>
+const Layout = () => {
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+    toast.info("Você foi desconectado.");
+  }
+
+  return (
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background sm:flex">
+        <div className="flex h-16 items-center border-b px-6">
+            <Link to="/" className="flex items-center gap-2 font-semibold">
+                <Stethoscope className="h-6 w-6 text-primary" />
+                <span>ClinicSys</span>
+            </Link>
         </div>
-        <nav className="flex flex-col gap-2">
-          <NavLink to="/" className={({ isActive }) => cn("flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900", isActive && "bg-gray-100 text-gray-900 font-semibold")}>
-            <LayoutDashboardIcon className="h-5 w-5" /> Dashboard
-          </NavLink>
-          <NavLink to="/consultas/nova" className={({ isActive }) => cn("flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900", isActive && "bg-gray-100 text-gray-900 font-semibold")}>
-            <PlusIcon className="h-5 w-5" /> Nova Consulta
-          </NavLink>
+        <nav className="flex flex-col gap-1 p-2">
+          <NavLink to="/" className={({ isActive }) => cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", isActive && "bg-muted text-primary")}> <LayoutDashboard className="h-4 w-4" /> Dashboard </NavLink>
+          <NavLink to="/consultas/nova" className={({ isActive }) => cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", isActive && "bg-muted text-primary")}> <Plus className="h-4 w-4" /> Nova Consulta </NavLink>
         </nav>
       </aside>
-      <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-6">
-          <h2 className="text-lg font-semibold">Gestão de Consultas Médicas</h2>
+      <div className="flex flex-col sm:pl-60">
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-end gap-4 border-b bg-background px-6">
+            <ThemeToggle />
+            <div className="flex items-center gap-2">
+                <div className="text-right">
+                    <p className="text-sm font-medium">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={handleLogout}>
+                    <LogOut className="h-5 w-5" />
+                </Button>
+            </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6"><Outlet /></main>
       </div>
     </div>
-);
+  );
+}
+
+// ROUTE PROTECTION
+const PrivateRoute = () => {
+  const { isAuthenticated } = useAuthStore();
+  return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
+}
 
 // PAGE: Dashboard
 function DashboardPage() {
-  // FIX 3: Removido 'deleteConsulta' que não era usado aqui
   const { consultas, loading, fetchConsultas } = useConsultasStore();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
   
-  // FIX 2: Adicionada a dependência 'fetchConsultas'
   useEffect(() => {
     fetchConsultas();
   }, [fetchConsultas]);
@@ -252,277 +224,128 @@ function DashboardPage() {
   const filteredConsultas = useMemo(() => {
     return consultas
       .filter(c => 
-        (c.paciente.toLowerCase().includes(search.toLowerCase()) || 
-         c.medico.toLowerCase().includes(search.toLowerCase())) &&
+        (c.paciente.toLowerCase().includes(search.toLowerCase()) || c.medico.toLowerCase().includes(search.toLowerCase())) &&
         (statusFilter === "Todos" || c.status === statusFilter)
       )
       .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
   }, [consultas, search, statusFilter]);
 
+  const stats = useMemo(() => {
+      const hoje = new Date().setHours(0,0,0,0);
+      return {
+          total: consultas.length,
+          agendadasHoje: consultas.filter(c => new Date(c.data).setHours(0,0,0,0) === hoje && c.status === 'Agendada').length,
+          realizadas: consultas.filter(c => c.status === 'Realizada').length,
+      }
+  }, [consultas]);
+
   return (
     <div className="space-y-6">
-      <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="shadow-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Consultas Totais</CardTitle>
+                <Stethoscope className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{loading ? '...' : stats.total}</div>
+                <p className="text-xs text-muted-foreground">Registradas no sistema</p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Agendadas para Hoje</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{loading ? '...' : stats.agendadasHoje}</div>
+                 <p className="text-xs text-muted-foreground">Consultas a serem realizadas hoje</p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Consultas Concluídas</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{loading ? '...' : stats.realizadas}</div>
+                 <p className="text-xs text-muted-foreground">Total de consultas já realizadas</p>
+            </CardContent>
+        </Card>
+      </div>
+
+      <Card className="shadow-card">
         <CardHeader>
-          <CardTitle>Filtros e Ações</CardTitle>
-          <CardDescription>Busque por consultas ou adicione uma nova.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Lista de Consultas</CardTitle>
+              <CardDescription>Gerencie todas as consultas agendadas.</CardDescription>
+            </div>
+            <Link to="/consultas/nova">
+              <Button><Plus className="w-4 h-4 mr-2"/> Nova Consulta</Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <Input placeholder="Buscar por paciente ou médico..." value={search} onChange={(e) => setSearch(e.target.value)} />
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
               <option value="Todos">Todos os Status</option>
               <option value="Agendada">Agendada</option>
               <option value="Realizada">Realizada</option>
               <option value="Cancelada">Cancelada</option>
-            </Select>
-            <Link to="/consultas/nova" className="md:ml-auto">
-                <Button className="w-full md:w-auto">
-                    <PlusIcon className="mr-2 h-4 w-4" /> Nova Consulta
-                </Button>
-            </Link>
+            </select>
           </div>
-        </CardContent>
-      </Card>
-      <Card>
-         <CardHeader>
-          <CardTitle>Lista de Consultas</CardTitle>
-          <CardDescription>Total de {filteredConsultas.length} consultas encontradas.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Especialidade</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={5} className="text-center">Carregando...</TableCell></TableRow>
-              ) : filteredConsultas.length > 0 ? (
-                filteredConsultas.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <div className="font-medium">{c.paciente}</div>
-                      <div className="text-sm text-gray-500">{c.medico}</div>
-                    </TableCell>
-                    <TableCell>{c.especialidade}</TableCell>
-                    <TableCell>{new Date(c.data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</TableCell>
-                    <TableCell><Badge status={c.status} /></TableCell>
-                    <TableCell className="text-right">
-                       <Link to={`/consultas/${c.id}`}>
-                         {/* FIX 1 (consequência): Usando o botão com a propriedade 'size' correta */}
-                         <Button variant="outline" size="sm">Detalhes</Button>
-                       </Link>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow><TableCell colSpan={5} className="text-center h-24">Nenhuma consulta encontrada.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr className="border-b">
+                  <th className="p-4 text-left text-sm font-semibold text-muted-foreground">Paciente</th>
+                  <th className="p-4 text-left text-sm font-semibold text-muted-foreground">Especialidade</th>
+                  <th className="p-4 text-left text-sm font-semibold text-muted-foreground">Data</th>
+                  <th className="p-4 text-left text-sm font-semibold text-muted-foreground">Status</th>
+                  <th className="p-4 text-right text-sm font-semibold text-muted-foreground">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {loading ? ( <tr><td colSpan={5} className="text-center p-6">Carregando...</td></tr> ) : 
+                filteredConsultas.length > 0 ? (
+                  filteredConsultas.map((c) => (
+                    <tr key={c.id} className="hover:bg-muted/50">
+                      <td className="p-4"> <div className="font-medium">{c.paciente}</div> <div className="text-sm text-muted-foreground">{c.medico}</div> </td>
+                      <td className="p-4 text-muted-foreground">{c.especialidade}</td>
+                      <td className="p-4 text-muted-foreground">{new Date(c.data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td className="p-4"><Badge status={c.status} /></td>
+                      <td className="p-4 text-right"> <Link to={`/consultas/${c.id}`}> <Button variant="outline" size="sm">Detalhes</Button> </Link> </td>
+                    </tr>
+                  ))
+                ) : ( <tr><td colSpan={5} className="text-center p-6 text-muted-foreground">Nenhuma consulta encontrada.</td></tr> )}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-// PAGE: Form (Create/Edit)
-function ConsultaForm({ isEdit = false }: { isEdit?: boolean }) {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const fetchConsultas = useConsultasStore(state => state.fetchConsultas);
-
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ConsultaFormData>({
-    resolver: zodResolver(consultaSchema),
-    defaultValues: { status: 'Agendada' }
-  });
-
-  useEffect(() => {
-    if (isEdit && id) {
-      consultasService.getById(Number(id)).then(data => {
-        const localDate = new Date(data.data).toISOString().slice(0, 16);
-        reset({ ...data, data: localDate });
-      });
-    }
-  }, [id, isEdit, reset]);
-
-  const onSubmit = async (data: ConsultaFormData) => {
-    try {
-      let savedConsulta;
-      if (isEdit && id) {
-        savedConsulta = await consultasService.update(Number(id), data);
-        toast.success("Consulta atualizada com sucesso!");
-      } else {
-        savedConsulta = await consultasService.create(data);
-        toast.success("Consulta criada com sucesso!");
-      }
-      await fetchConsultas();
-      navigate(`/consultas/${savedConsulta.id}`);
-    } catch (error) {
-      toast.error(`Erro ao ${isEdit ? 'atualizar' : 'criar'} a consulta.`);
-    }
-  };
-
-  return (
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle>{isEdit ? 'Editar Consulta' : 'Nova Consulta'}</CardTitle>
-          <CardDescription>Preencha os dados abaixo para {isEdit ? 'atualizar' : 'agendar'} a consulta.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="paciente">Paciente</Label>
-                <Input id="paciente" {...register("paciente")} placeholder="Nome do Paciente" />
-                {errors.paciente && <p className="text-red-500 text-sm">{errors.paciente.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="medico">Médico</Label>
-                <Input id="medico" {...register("medico")} placeholder="Nome do Médico" />
-                {errors.medico && <p className="text-red-500 text-sm">{errors.medico.message}</p>}
-              </div>
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="especialidade">Especialidade</Label>
-                <Input id="especialidade" {...register("especialidade")} placeholder="Ex: Cardiologia" />
-                {errors.especialidade && <p className="text-red-500 text-sm">{errors.especialidade.message}</p>}
-              </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="data">Data e Hora</Label>
-                <Input id="data" type="datetime-local" {...register("data")} />
-                {errors.data && <p className="text-red-500 text-sm">{errors.data.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field }) => (
-                    <Select {...field}>
-                      <option value="Agendada">Agendada</option>
-                      <option value="Realizada">Realizada</option>
-                      <option value="Cancelada">Cancelada</option>
-                    </Select>
-                  )}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notas">Notas Adicionais</Label>
-              <Textarea id="notas" {...register("notas")} placeholder="Observações..." />
-            </div>
-            <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => navigate('/')} disabled={isSubmitting}>Cancelar</Button>
-                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Salvando...' : 'Salvar'}</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-  );
-}
-
-// PAGE: Details
-function ConsultaDetailsPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [consulta, setConsulta] = useState<Consulta | null>(null);
-  const deleteConsulta = useConsultasStore(state => state.deleteConsulta);
-  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-  useEffect(() => {
-    if (id) {
-      consultasService.getById(Number(id))
-        .then(setConsulta)
-        .catch(() => {
-            toast.error("Consulta não encontrada.");
-            navigate('/');
-        });
-    }
-  }, [id, navigate]);
-  
-  const handleDelete = async () => {
-      if (consulta) {
-          await deleteConsulta(consulta.id);
-          navigate('/');
-      }
-  };
-
-  if (!consulta) return <div>Carregando...</div>;
-
-  return (
-    <>
-      <Card className="w-full max-w-3xl mx-auto">
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle>Detalhes da Consulta</CardTitle>
-              <CardDescription>
-                Agendada para {new Date(consulta.data).toLocaleDateString('pt-BR')} às {new Date(consulta.data).toLocaleTimeString('pt-BR', {timeStyle: 'short'})}
-              </CardDescription>
-            </div>
-             <Badge status={consulta.status} />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1"><p className="text-sm font-medium text-gray-500">Paciente</p><p className="text-lg font-semibold">{consulta.paciente}</p></div>
-                <div className="space-y-1"><p className="text-sm font-medium text-gray-500">Médico</p><p className="text-lg font-semibold">{consulta.medico}</p></div>
-                <div className="space-y-1"><p className="text-sm font-medium text-gray-500">Especialidade</p><p className="text-lg font-semibold">{consulta.especialidade}</p></div>
-            </div>
-             <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">Notas</p>
-                <p className="text-gray-700 whitespace-pre-wrap">{consulta.notas || 'Nenhuma nota adicional.'}</p>
-            </div>
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => navigate('/')}>Voltar</Button>
-              <Button variant="outline" onClick={() => navigate(`/consultas/${consulta.id}/editar`)}>Editar</Button>
-              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>Excluir</Button>
-            </div>
-        </CardContent>
-      </Card>
-      {isDeleteDialogOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <Card className="w-full max-w-md">
-                 <CardHeader>
-                    <CardTitle>Confirmar Exclusão</CardTitle>
-                    <CardDescription>
-                        Tem certeza que deseja excluir a consulta do paciente <strong>{consulta.paciente}</strong>? Esta ação não pode ser desfeita.
-                    </CardDescription>
-                 </CardHeader>
-                 <CardContent className="flex justify-end gap-2">
-                     <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
-                     <Button variant="destructive" onClick={handleDelete}>Confirmar</Button>
-                 </CardContent>
-            </Card>
-        </div>
-      )}
-    </>
-  );
-}
-
 // MAIN APP COMPONENT
 function App() {
   return (
-    <>
+    <ThemeProvider>
       <Toaster position="top-right" richColors />
       <Router>
-        <Layout>
-            <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/consultas/nova" element={<ConsultaForm />} />
-                <Route path="/consultas/:id" element={<ConsultaDetailsPage />} />
-                <Route path="/consultas/:id/editar" element={<ConsultaForm isEdit />} />
-            </Routes>
-        </Layout>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/*" element={<PrivateRoute />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="consultas/nova" element={<ConsultaForm />} />
+            <Route path="consultas/:id" element={<ConsultaDetailsPage />} />
+            <Route path="consultas/:id/editar" element={<ConsultaForm isEdit />} />
+          </Route>
+        </Routes>
       </Router>
-    </>
+    </ThemeProvider>
   );
 }
 
