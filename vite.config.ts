@@ -1,10 +1,18 @@
-// vite.config.ts
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
+import { fileURLToPath } from 'url'; // Forma mais robusta de usar import.meta.url
 
-// Remova qualquer menção a 'tailwindcss' daqui.
-// O Vite vai usar o arquivo postcss.config.js automaticamente.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
 })
